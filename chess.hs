@@ -107,9 +107,15 @@ replaceSquare board (origin, destination) square coords
 
 isMoveAllowed :: Board -> Color -> Move -> Bool
 isMoveAllowed board color (origin, destination) = isPlayerPiece color (getSquare board origin)
+-- TODO: make this more powerful
 
 gameOver :: Board -> Maybe Color
 gameOver board = Nothing
+-- TODO: check number of kings on board and conclude
+
+--------
+-- IO --
+--------
 
 queryMove :: Board -> Color -> IO Move
 queryMove board color = do
