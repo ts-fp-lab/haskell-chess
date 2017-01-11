@@ -1,15 +1,18 @@
 module Main where
 
 import Data.Char
+-- [TODO] - Split this file in 2 if possible: 1 w/ Vector & 1 w/ List
 import Data.Vector
 import Data.List
 import System.IO
 
 data PieceType = Pawn | King | Queen | Rook | Bishop | Knight deriving (Show)
 data Letter = A | B | C | D | E | F | G | H deriving (Eq, Ord, Show, Read, Bounded, Enum)
+-- [TODO] - Create Number class constrained between 1 & 8
 -- data Number = One | Two | Three | Four | Five | Six | Seven | Eight deriving (Eq, Ord, Show, Read, Bounded, Enum)
 data Color = Black | White deriving (Eq, Show)
 type PieceInfo = (PieceType, Color)
+-- [TODO] -- Use two bounded Ints & refactor
 type Coords = (Letter, Int)
 type Move = (Coords, Coords)
 
