@@ -20,21 +20,23 @@ instance Show Square where
   show (Piece (pieceType, White)) = [Data.List.head (show pieceType)]
   show (Piece (pieceType, Black)) = [toLower $ Data.List.head (show pieceType)]
 
+-- instance Read Square where
+--   readsPrec d ('k': therest) = [(Piece (King, Black), therest)]
+--   readsPrec d ('q': therest) = [(Piece (Queen, Black), therest)]
+--   readsPrec d ('r': therest) = [(Piece (Rook, Black), therest)]
+--   readsPrec d ('b': therest) = [(Piece (Bishop, Black), therest)]
+--   readsPrec d ('n': therest) = [(Piece (Knight, Black), therest)]
+--   readsPrec d ('p': therest) = [(Piece (Pawn, Black), therest)]
+--   readsPrec d ('K': therest) = [(Piece (King, White), therest)]
+--   readsPrec d ('Q': therest) = [(Piece (Queen, White), therest)]
+--   readsPrec d ('R': therest) = [(Piece (Rook, White), therest)]
+--   readsPrec d ('B': therest) = [(Piece (Bishop, White), therest)]
+--   readsPrec d ('N': therest) = [(Piece (Knight, White), therest)]
+--   readsPrec d ('P': therest) = [(Piece (Pawn, White), therest)]
+--   readsPrec d ('.': therest) = [(Empty, therest)]
+--   readsPrec d _ = []
+
 instance Read Square where
-  readsPrec d ('k': therest) = [(Piece (King, Black), therest)]
-  readsPrec d ('q': therest) = [(Piece (Queen, Black), therest)]
-  readsPrec d ('r': therest) = [(Piece (Rook, Black), therest)]
-  readsPrec d ('b': therest) = [(Piece (Bishop, Black), therest)]
-  readsPrec d ('n': therest) = [(Piece (Knight, Black), therest)]
-  readsPrec d ('p': therest) = [(Piece (Pawn, Black), therest)]
-  readsPrec d ('K': therest) = [(Piece (King, White), therest)]
-  readsPrec d ('Q': therest) = [(Piece (Queen, White), therest)]
-  readsPrec d ('R': therest) = [(Piece (Rook, White), therest)]
-  readsPrec d ('B': therest) = [(Piece (Bishop, White), therest)]
-  readsPrec d ('N': therest) = [(Piece (Knight, White), therest)]
-  readsPrec d ('P': therest) = [(Piece (Pawn, White), therest)]
-  readsPrec d ('.': therest) = [(Empty, therest)]
-  readsPrec d _ = []
 
 
 indexesToCoords :: Int -> Int -> Coords
@@ -63,3 +65,9 @@ boardLineToAscii nb line = (show nb) Data.List.++ " ║" Data.List.++ (Data.List
 
 boardToAscii :: Board -> String
 boardToAscii board = unlines (toList (Data.Vector.imap (\lineNb line -> boardLineToAscii lineNb line) board))
+
+charToSquare :: Char -> Square
+charToSquare c = read [c]
+
+isInBoard :: (Int, Int) -> Bool
+isInBoard (x, y) = x >= 0 && x < 8 && y >= 0 && y < 8
