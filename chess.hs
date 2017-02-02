@@ -113,7 +113,6 @@ replaceSquare board (origin, destination) square coords
 
 isMoveAllowed :: GameState -> Move -> Bool
 isMoveAllowed (board, color) (origin, destination) = isPlayerPiece color (getSquare board origin) && (destination `Data.List.elem` possibleMoves (board, color) origin)
--- TODO: make this more powerful
 
 isInBoard :: Coords -> Bool
 isInBoard (x, y) = x >= 0 && x < 8 && y >= 0 && y < 8
@@ -138,7 +137,10 @@ movePawnStraight :: GameState -> Coords -> Int -> [Coords]
 movePawnStraight (board, color) (x, y) pawnDirection = Data.List.filter (\coords -> (getSquare board coords) == Empty) ([(x, y+pawnDirection)] Data.List.++ (if y==1 && pawnDirection == 1 || y == 6 && pawnDirection == -1 then [(x, y+2*pawnDirection)] else []))
 
 movePawnEat :: GameState -> Coords -> Int -> [Coords]
-movePawnEat (board, color) (x, y) pawnDirection = (Data.List.filter (\coords -> (not (isPlayerPiece (next color) (getSquare board coords)))) [(x+1, y+pawnDirection), (x-1, y+pawnDirection)])
+movePawnEat (board, color) (x, y) pawnDirection = (
+  Data.List.filter (
+    \coords -> isPlayerPiece (next color) (getSquare board coords)
+  ) [(x+1, y+pawnDirection), (x-1, y+pawnDirection)])
 
 moveInLine :: GameState -> Coords -> Int -> [Coords]
 moveInLine gameState (x, y) distance = Data.List.concatMap (checkDirection gameState distance) [(\d -> (x+d, y)), (\d -> (x-d, y)), (\d -> (x, y+d)), (\d -> (x, y-d))]
@@ -167,9 +169,19 @@ checkDirection gameState distance transformator = Data.List.foldr (\coords ys ->
     Just True -> (coords:ys)
   ) [] $ Data.List.map transformator [1..distance]
 
-gameOver :: Board -> Maybe Color
-gameOver board = Nothing
--- TODO: check number of kings on board and conclude
+
+isKing :: Square -> Bool
+isKing (Piece (piecetype, _)) = piecetype == King
+isKing Empty = False
+
+getColor :: Square -> Maybe Color
+getColor (Piece (_, color)) = Just color
+getColor Empty = Nothing
+
+gameOverWinner :: Board -> Maybe Color
+gameOverWinner board = 
+  let kings = Data.Vector.concatMap (Data.Vector.filter isKing) board
+  in if Data.Vector.length kings == 2 then Nothing else getColor (Data.Vector.head kings)
 
 --------
 -- IO --
@@ -192,11 +204,11 @@ gameTurn (board, color) = do
   putStr ((show color) Data.List.++ "'s turn. Move? (eg. d2d4)\n")
   move <- queryMove (board, color)
   let newBoard = makeMove board move
-  let winner = gameOver newBoard
+  let winner = gameOverWinner newBoard
   if winner == Nothing then
     gameTurn (newBoard, next color)
   else
-    putStr ((show winner) Data.List.++ " won!")
+    putStr ((show (fromJust winner)) Data.List.++ " won!")
 
 main :: IO ()
 main = do
