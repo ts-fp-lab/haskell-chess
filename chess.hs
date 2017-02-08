@@ -183,6 +183,9 @@ gameOverWinner board =
   let kings = Data.Vector.concatMap (Data.Vector.filter isKing) board
   in if Data.Vector.length kings == 2 then Nothing else getColor (Data.Vector.head kings)
 
+fromJust :: Maybe a -> a
+fromJust (Just a) = a
+
 --------
 -- IO --
 --------
