@@ -5,10 +5,13 @@ module Main where
   -- import Data.Vector
   import Data.List
   import System.IO
+  import System.Directory
 
   import Datatypes
   import Board
   import Rules
+
+
 
   chessCoords :: Coords -> String
   chessCoords (x, y) = [Data.Char.chr (x+65)] ++ (show (8 - y))
@@ -60,9 +63,45 @@ module Main where
     else
       putStr ((show (fromJust winner)) ++ " won!")
 
-  main :: IO ()
-  main = do
+  choosePlayer :: IO Color
+  choosePlayer = do
+    putStrLn "What player do you want to be? (W/B)"
+    playerIO <- getLine
+    if toUpper (head playerIO) == 'W' then
+      return White
+    else
+      return Black
+
+
+  newGame :: IO ()
+  newGame = do
+    putStrLn "Starting new game."
     boardIO <- readFile "data/board.txt"
     let board = readBoard boardIO
-    -- putStr (boardToAscii board)
-    gameTurn (board, White)
+    startColor <- choosePlayer
+    gameTurn (board, startColor)
+
+  loadGame :: IO ()
+  loadGame = do
+    putStrLn "Loading game."
+    availableGames <- getDirectoryContents "games"
+    -- putStrLn availableGames
+    putStrLn (intercalate " " availableGames)
+    -- mapM_ (\game ->  game) availableGames
+    -- map (\filePath -> putStrLn ( filePath )
+
+
+
+  main :: IO ()
+  main = do
+    putStrLn "Welcome to Haskell Chess."
+    putStrLn "What do you want to do?"
+    putStrLn "  - 1. Start a new game"
+    putStrLn "  - 2. Load a game"
+    choiceIO <- getLine
+    if choiceIO == "1" then
+      newGame
+    else
+      loadGame
+
+
