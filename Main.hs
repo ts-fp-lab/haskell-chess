@@ -4,6 +4,7 @@ module Main where
   -- [TODO] - Split this file in 2 if possible: 1 w/ Vector & 1 w/ List
   -- import Data.Vector
   import Data.List
+  import Data.Foldable
   import System.IO
   import System.Directory
 
@@ -11,6 +12,9 @@ module Main where
   import Board
   import Rules
 
+  -- type Choice = (String, String)
+
+  -- data Choice a = (String, String, a)
 
 
   chessCoords :: Coords -> String
@@ -32,9 +36,6 @@ module Main where
   stringToMove (l1:n1:l2:n2:rest) = (stringToCoords l1 n1, stringToCoords l2 n2)
   -- writeBoard :: Board -> String
   -- writeBoard board = (intercalate "\n" $ toList $ Data.Vector.map (toList . Data.Vector.map (head . show)) board) ++ "\n"
-
-  fromJust :: Maybe a -> a
-  fromJust (Just a) = a
 
   --------
   -- IO --
@@ -58,50 +59,55 @@ module Main where
     move <- queryMove (board, color)
     let newBoard = makeMove board move
     let winner = gameOverWinner newBoard
-    if winner == Nothing then
-      gameTurn (newBoard, next color)
-    else
-      putStr ((show (fromJust winner)) ++ " won!")
+    case gameOverWinner newBoard of
+      Nothing -> gameTurn (newBoard, next color)
+      Just winner -> putStr ((show winner) ++ " won!")
 
-  choosePlayer :: IO Color
-  choosePlayer = do
-    putStrLn "What player do you want to be? (W/B)"
-    playerIO <- getLine
-    if toUpper (head playerIO) == 'W' then
-      return White
-    else
-      return Black
+  choiceMaker :: String -> [(String, String, a)] -> IO a
+  choiceMaker question choices = do
+    putStrLn question
+    forM_ choices (\(_, str, _) -> putStrLn str)
+    choiceIO <- getLine
+    case find (\(match, _, _) -> toUpper (head choiceIO) `elem` match) choices of
+      Nothing -> do
+        putStrLn "Wrong Choice. Try again..."
+        choiceMaker question choices
+      Just (_, _, result) -> return result
 
+  choosePlayer :: IO Player
+  choosePlayer = choiceMaker "Who will you beat?" [("1H", "1. Human (h)", Human), ("2I", "2. IA (i)", IA)]
+
+  chooseColor :: IO Color
+  chooseColor = choiceMaker "What player do you want to be?" [("1W", "1. White (w)", White), ("2B", "2. Black (b)", Black)]
 
   newGame :: IO ()
   newGame = do
-    putStrLn "Starting new game."
+    putStrLn "Starting new game"
     boardIO <- readFile "data/board.txt"
     let board = readBoard boardIO
-    startColor <- choosePlayer
+    player <- choosePlayer
+    startColor <- chooseColor
     gameTurn (board, startColor)
 
   loadGame :: IO ()
   loadGame = do
-    putStrLn "Loading game."
+    putStrLn "Loading game"
     availableGames <- getDirectoryContents "games"
     -- putStrLn availableGames
     putStrLn (intercalate " " availableGames)
     -- mapM_ (\game ->  game) availableGames
     -- map (\filePath -> putStrLn ( filePath )
 
-
+  welcome :: IO ()
+  welcome = do
+    putStrLn "Welcome to Haskell Chess."
+    loadSavedGame <- choiceMaker "What do you want to do?" [("1S", "  1. Start a new game (s)", False), ("2L", "  2. Load a game (l)", True)]
+    if loadSavedGame then
+      loadGame
+    else
+      newGame
 
   main :: IO ()
-  main = do
-    putStrLn "Welcome to Haskell Chess."
-    putStrLn "What do you want to do?"
-    putStrLn "  - 1. Start a new game"
-    putStrLn "  - 2. Load a game"
-    choiceIO <- getLine
-    if choiceIO == "1" then
-      newGame
-    else
-      loadGame
+  main = welcome
 
 

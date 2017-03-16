@@ -3,6 +3,7 @@ module Datatypes where
   import Data.List
   import Data.Char
 
+  data Player = Human | IA
   data PieceType = Pawn | King | Queen | Rook | Bishop | Horse deriving (Show, Eq)
   data Color = Black | White deriving (Eq, Show)
   type PieceInfo = (PieceType, Color)
