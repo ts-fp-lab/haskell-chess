@@ -4,6 +4,7 @@ module Main where
   -- [TODO] - Split this file in 2 if possible: 1 w/ Vector & 1 w/ List
   -- import Data.Vector
   import Data.List
+  import Data.List.Utils
   import Data.Foldable
   import System.IO
   import System.Directory
@@ -63,6 +64,7 @@ module Main where
       Nothing -> gameTurn (newBoard, next color)
       Just winner -> putStr ((show winner) ++ " won!")
 
+  -- TODO: Remove the first of the triplet and make it deducable from first char of second and indice
   choiceMaker :: String -> [(String, String, a)] -> IO a
   choiceMaker question choices = do
     putStrLn question
@@ -75,10 +77,16 @@ module Main where
       Just (_, _, result) -> return result
 
   choosePlayer :: IO Player
-  choosePlayer = choiceMaker "Who will you beat?" [("1H", "1. Human (h)", Human), ("2I", "2. IA (i)", IA)]
+  choosePlayer = choiceMaker "Who will you beat?" [
+      ("1H", "1. Human (h)", Human),
+      ("2I", "2. IA (i)", IA)
+    ]
 
   chooseColor :: IO Color
-  chooseColor = choiceMaker "What player do you want to be?" [("1W", "1. White (w)", White), ("2B", "2. Black (b)", Black)]
+  chooseColor = choiceMaker "What player do you want to be?" [
+      ("1W", "1. White (w)", White),
+      ("2B", "2. Black (b)", Black)
+    ]
 
   newGame :: IO ()
   newGame = do
@@ -91,23 +99,32 @@ module Main where
 
   loadGame :: IO ()
   loadGame = do
-    putStrLn "Loading game"
+    putStrLn "Here are the available games:"
     availableGames <- getDirectoryContents "games"
-    -- putStrLn availableGames
-    putStrLn (intercalate " " availableGames)
-    -- mapM_ (\game ->  game) availableGames
-    -- map (\filePath -> putStrLn ( filePath )
+    forM_ (map ((replace ".chess" "") . ("- " ++)) (filter (endswith ".chess") availableGames)) putStrLn
+    putStrLn "Type the name you want to load:"
+    gameNameIO <- getLine
+    boardIO <- readFile ("games/" ++ gameNameIO ++ ".chess")
+    let board = readBoard boardIO
+    gameTurn (board, White)
 
-  welcome :: IO ()
-  welcome = do
-    putStrLn "Welcome to Haskell Chess."
-    loadSavedGame <- choiceMaker "What do you want to do?" [("1S", "  1. Start a new game (s)", False), ("2L", "  2. Load a game (l)", True)]
+  startOrLoad :: IO ()
+  startOrLoad = do
+    loadSavedGame <- choiceMaker "What do you want to do?" [
+        ("1S", "  1. Start a new game (s)", False),
+        ("2L", "  2. Load a game (l)", True)
+      ]
     if loadSavedGame then
       loadGame
     else
       newGame
 
   main :: IO ()
-  main = welcome
+  main = do
+    putStrLn "----------------------------"
+    putStrLn "| Welcome to Haskell Chess |"
+    putStrLn "----------------------------"
+    putStrLn ""
+    startOrLoad
 
 
