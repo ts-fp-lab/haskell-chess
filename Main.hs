@@ -34,11 +34,9 @@ module Main where
       y = (8 - read [number]) `mod` 8
 
   stringToMove :: String -> Maybe Move
-  stringToMove [] = Nothing
-  stringToMove [a] = Nothing
-  stringToMove [a, b] = Nothing
-  stringToMove [a, b, c] = Nothing
-  stringToMove (l1:n1:l2:n2:rest) = Just (stringToCoords l1 n1, stringToCoords l2 n2)
+  stringToMove s = do
+      l1:n1:l2:n2:_ <- return s
+      return (stringToCoords l1 n1, stringToCoords l2 n2)
   -- writeBoard :: Board -> String
   -- writeBoard board = (intercalate "\n" $ toList $ Data.Vector.map (toList . Data.Vector.map (head . show)) board) ++ "\n"
 
@@ -79,10 +77,11 @@ module Main where
         case gameOverWinner newBoard of
           Nothing -> gameTurn (newBoard, next color)
           Just winner -> putStr ((show winner) ++ " won!")
-      Right command -> executeCommand command
+      Right command -> executeCommand (board, color) [command]
 
-  executeCommand :: String -> IO ()
-  executeCommand string = putStrLn ("Executing " ++ string)
+  executeCommand :: GameState -> [String] -> IO ()
+  executeCommand state ("save":rest) = saveGame state
+  executeCommand _ _ = putStrLn ("Unknown command")
 
   -- TODO: Remove the first of the triplet and make it deducable from first char of second and indice
   choiceMaker :: String -> [(String, String, a)] -> IO a
@@ -98,8 +97,8 @@ module Main where
 
   choosePlayer :: IO Player
   choosePlayer = choiceMaker "Who will you beat?" [
-      ("1H", "1. Human (h)", Human),
-      ("2I", "2. IA (i)", IA)
+      ("1H", "1. Human (h)", Human), -- ("Human", Human)
+      ("2I", "2. IA (i)", IA) -- ("IA", IA)
     ]
 
   chooseColor :: IO Color
@@ -122,11 +121,16 @@ module Main where
     putStrLn "Here are the available games:"
     availableGames <- getDirectoryContents "games"
     forM_ (map ((replace ".chess" "") . ("- " ++)) (filter (endswith ".chess") availableGames)) putStrLn
+    -- TODO: make this a list with index to be able to type a number
     putStrLn "Type the name you want to load:"
     gameNameIO <- getLine
     boardIO <- readFile ("games/" ++ gameNameIO ++ ".chess")
     let board = readBoard boardIO
     gameTurn (board, White)
+
+  saveGame :: GameState -> IO ()
+  saveGame state = do
+    putStrLn "Game saved"
 
   startOrLoad :: IO ()
   startOrLoad = do
