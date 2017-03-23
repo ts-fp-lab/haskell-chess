@@ -33,36 +33,56 @@ module Main where
       x = ((Data.Char.ord $ toUpper letter) - 65) `mod` 8
       y = (8 - read [number]) `mod` 8
 
-  stringToMove :: String -> Move
-  stringToMove (l1:n1:l2:n2:rest) = (stringToCoords l1 n1, stringToCoords l2 n2)
+  stringToMove :: String -> Maybe Move
+  stringToMove [] = Nothing
+  stringToMove [a] = Nothing
+  stringToMove [a, b] = Nothing
+  stringToMove [a, b, c] = Nothing
+  stringToMove (l1:n1:l2:n2:rest) = Just (stringToCoords l1 n1, stringToCoords l2 n2)
   -- writeBoard :: Board -> String
   -- writeBoard board = (intercalate "\n" $ toList $ Data.Vector.map (toList . Data.Vector.map (head . show)) board) ++ "\n"
+
+  moveOrCommandIO :: String -> Either (Maybe Move) String
+  moveOrCommandIO (':':rest) = Right rest
+  moveOrCommandIO string = Left (stringToMove string)
 
   --------
   -- IO --
   --------
 
-  queryMove :: GameState -> IO Move
+  queryMove :: GameState -> IO (Either Move String)
   queryMove gameState = do
     moveIO <- getLine
-    let move = stringToMove moveIO
-    if isMoveAllowed gameState move then
-      return move
-    else do
-      putStrLn "Impossible Move. Retry!"
-      putStrLn ("Possible Moves:" ++ concatMap chessCoords (possibleMoves gameState (fst move)))
-      queryMove gameState
+    case moveOrCommandIO moveIO of
+      Left Nothing -> do
+        putStrLn "Wrong Input. Retry!"
+        queryMove gameState
+      Left (Just move) -> do
+        if isMoveAllowed gameState move then
+          return (Left move)
+        else do
+          putStrLn "Impossible Move. Retry!"
+          putStrLn ("Possible Moves:" ++ concatMap chessCoords (possibleMoves gameState (fst move)))
+          queryMove gameState
+      Right command -> return (Right command)
+
 
   gameTurn :: GameState -> IO ()
   gameTurn (board, color) = do
     putStr $ boardToAscii board
     putStr ((show color) ++ "'s turn. Move? (eg. d2d4)\n")
-    move <- queryMove (board, color)
-    let newBoard = makeMove board move
-    let winner = gameOverWinner newBoard
-    case gameOverWinner newBoard of
-      Nothing -> gameTurn (newBoard, next color)
-      Just winner -> putStr ((show winner) ++ " won!")
+    moveIO <- queryMove (board, color)
+    case moveIO of
+      Left move -> do
+        let newBoard = makeMove board move
+        let winner = gameOverWinner newBoard
+        case gameOverWinner newBoard of
+          Nothing -> gameTurn (newBoard, next color)
+          Just winner -> putStr ((show winner) ++ " won!")
+      Right command -> executeCommand command
+
+  executeCommand :: String -> IO ()
+  executeCommand string = putStrLn ("Executing " ++ string)
 
   -- TODO: Remove the first of the triplet and make it deducable from first char of second and indice
   choiceMaker :: String -> [(String, String, a)] -> IO a
