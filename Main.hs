@@ -1,8 +1,6 @@
 module Main where
 
   import Data.Char
-  -- [TODO] - Split this file in 2 if possible: 1 w/ Vector & 1 w/ List
-  -- import Data.Vector
   import Data.List
   import Data.List.Utils
   import Data.Foldable
