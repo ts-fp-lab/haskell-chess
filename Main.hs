@@ -5,7 +5,9 @@ module Main where
   -- import Data.Vector
   import Data.List
   import Data.List.Utils
+  import Data.List.Split
   import Data.Foldable
+  import Data.Time.Clock
   import System.IO
   import System.Directory
 
@@ -40,15 +42,15 @@ module Main where
   -- writeBoard :: Board -> String
   -- writeBoard board = (intercalate "\n" $ toList $ Data.Vector.map (toList . Data.Vector.map (head . show)) board) ++ "\n"
 
-  moveOrCommandIO :: String -> Either (Maybe Move) String
-  moveOrCommandIO (':':rest) = Right rest
+  moveOrCommandIO :: String -> Either (Maybe Move) [String]
+  moveOrCommandIO (':':rest) = Right (splitOn " " rest)
   moveOrCommandIO string = Left (stringToMove string)
 
   --------
   -- IO --
   --------
 
-  queryMove :: GameState -> IO (Either Move String)
+  queryMove :: GameState -> IO (Either Move [String])
   queryMove gameState = do
     moveIO <- getLine
     case moveOrCommandIO moveIO of
@@ -65,8 +67,8 @@ module Main where
       Right command -> return (Right command)
 
 
-  gameTurn :: GameState -> IO ()
-  gameTurn (board, color) = do
+  gameTurn :: GameState -> String -> IO ()
+  gameTurn (board, color) gameName = do
     putStr $ boardToAscii board
     putStr ((show color) ++ "'s turn. Move? (eg. d2d4)\n")
     moveIO <- queryMove (board, color)
@@ -74,14 +76,26 @@ module Main where
       Left move -> do
         let newBoard = makeMove board move
         let winner = gameOverWinner newBoard
-        case gameOverWinner newBoard of
-          Nothing -> gameTurn (newBoard, next color)
+        case winner of
+          Nothing -> do
+            saveMoveToFile move gameName
+            gameTurn (newBoard, next color) gameName
           Just winner -> putStr ((show winner) ++ " won!")
-      Right command -> executeCommand (board, color) [command]
+      Right command -> do
+        exit <- executeCommandExits (board, color) gameName command
+        if not exit
+          then gameTurn (board, color) gameName
+          else quitGame gameName
 
-  executeCommand :: GameState -> [String] -> IO ()
-  executeCommand state ("save":rest) = saveGame state
-  executeCommand _ _ = putStrLn ("Unknown command")
+  executeCommandExits :: GameState -> String -> [String] -> IO Bool
+  executeCommandExits state _ ("quit":rest) = do
+    return True
+  executeCommandExits state oldGameName ("save":newGameName:rest) = do
+    saveGame oldGameName newGameName
+    return False
+  executeCommandExits _ _ _ = do
+    putStrLn ("Unknown command")
+    return False
 
   -- TODO: Remove the first of the triplet and make it deducable from first char of second and indice
   choiceMaker :: String -> [(String, String, a)] -> IO a
@@ -107,30 +121,54 @@ module Main where
       ("2B", "2. Black (b)", Black)
     ]
 
+  getInitialGameState :: IO GameState
+  getInitialGameState = do
+    boardIO <- readFile "data/board.txt"
+    let board = readBoard boardIO
+    return (board, White)
+
+  buildFileName :: String -> Bool -> String
+  buildFileName gameName temp = "games/" ++ (if temp then "." else "") ++ gameName ++ ".chess"
+
   newGame :: IO ()
   newGame = do
     putStrLn "Starting new game"
-    boardIO <- readFile "data/board.txt"
-    let board = readBoard boardIO
     player <- choosePlayer
-    startColor <- chooseColor
-    gameTurn (board, startColor)
+    initialGameState <- getInitialGameState
+    currentTime <- getCurrentTime
+    gameTurn initialGameState (show currentTime)
 
   loadGame :: IO ()
   loadGame = do
     putStrLn "Here are the available games:"
     availableGames <- getDirectoryContents "games"
-    forM_ (map ((replace ".chess" "") . ("- " ++)) (filter (endswith ".chess") availableGames)) putStrLn
+    forM_ (map ((replace ".chess" "") . ("- " ++)) (filter (\x -> (not (startswith "." x)) && (endswith ".chess" x)) availableGames)) putStrLn
     -- TODO: make this a list with index to be able to type a number
     putStrLn "Type the name you want to load:"
-    gameNameIO <- getLine
-    boardIO <- readFile ("games/" ++ gameNameIO ++ ".chess")
-    let board = readBoard boardIO
-    gameTurn (board, White)
+    gameName <- getLine
+    let loadFileName = (buildFileName gameName False)
+    let tempFileName = (buildFileName gameName True)
+    copyFile loadFileName tempFileName
+    fileContents <- readFile tempFileName
+    -- let board = readBoard fileContents
+    let moves = map (read::String->Move) $ filter ("" /=) $ splitOn "\n" fileContents
+    initialGameState <- getInitialGameState
+    let newGameState = foldl (\(board, color) move -> (makeMove board move, next color)) initialGameState moves
+    gameTurn newGameState gameName
 
-  saveGame :: GameState -> IO ()
-  saveGame state = do
+  saveGame :: String -> String -> IO ()
+  saveGame oldGameName newGameName = do
+    copyFile (buildFileName oldGameName True) (buildFileName newGameName False) 
     putStrLn "Game saved"
+
+  quitGame :: String -> IO ()
+  quitGame oldGameName = do
+    removeFile (buildFileName oldGameName True)
+    putStrLn "Bye"
+
+  saveMoveToFile :: Move -> String -> IO ()
+  saveMoveToFile move gameName = do
+    appendFile (buildFileName gameName True) ((show move) ++ "\n")
 
   startOrLoad :: IO ()
   startOrLoad = do
