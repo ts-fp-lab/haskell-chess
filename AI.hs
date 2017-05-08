@@ -5,6 +5,7 @@ module AI where
   import Rules
 
 
+  -- TODO6: Minmax algorithm
 
   getMove :: GameState -> Int -> Move
   getMove gameState seed = possibleMoves!!index

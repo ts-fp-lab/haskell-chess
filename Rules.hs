@@ -32,7 +32,7 @@ module Rules where
       square = getSquare board origin
       possibleDestinations = possibleDestinationsFromOrigin (board, color) origin
 
-  -- TODO: if check then possible moves change
+  -- TODO1: if king check then possible moves change
   possibleDestinationsFromOrigin :: GameState -> Coords -> [Coords]
   possibleDestinationsFromOrigin (board, color) origin =
     case getSquare board origin of
@@ -42,6 +42,7 @@ module Rules where
         else []
 
   possibleDestinationsPerType :: GameState -> Coords -> PieceType -> Color -> [Coords]
+  -- TODO4: castling
   possibleDestinationsPerType gameState origin King _ = (moveInLine gameState origin 1) L.++ (moveInDiagonal gameState origin 1)
   possibleDestinationsPerType gameState origin Queen _ = (moveInLine gameState origin 8) L.++ (moveInDiagonal gameState origin 8)
   possibleDestinationsPerType gameState origin Rook _ = moveInLine gameState origin 8
@@ -66,14 +67,15 @@ module Rules where
   movePawn gameState origin pawnDirection = (movePawnStraight gameState origin pawnDirection) L.++ (movePawnEat gameState origin pawnDirection)
 
   movePawnStraight :: GameState -> Coords -> Int -> [Coords]
-  -- TODO - Write rule for end of board
+  -- TODO2 - Write rule for end of board transformation as Queen or other
   movePawnStraight (board, color) (x, y) pawnDirection =
     L.filter
       (\coords -> isInBoard coords && (getSquare board coords) == Empty)
       ([(x, y+pawnDirection)] L.++ (if y==1 && pawnDirection == 1 || y == 6 && pawnDirection == -1 then [(x, y+2*pawnDirection)] else []))
 
   movePawnEat :: GameState -> Coords -> Int -> [Coords]
-  -- TODO - Write rule for end of board
+  -- TODO2 - Write rule for end of board
+  -- TODO3 - Write en passant rule
   movePawnEat (board, color) (x, y) pawnDirection = (
     L.filter (
       \coords -> isInBoard coords && isPlayerPiece (next color) (getSquare board coords)
@@ -83,7 +85,7 @@ module Rules where
   moveInLine gameState (x, y) distance = L.concatMap (checkDirection gameState distance) [(\d -> (x+d, y)), (\d -> (x-d, y)), (\d -> (x, y+d)), (\d -> (x, y-d))]
 
   moveInDiagonal :: GameState -> Coords -> Int -> [Coords]
-  moveInDiagonal gameState (x, y) distance =  L.concatMap (checkDirection gameState distance) [(\ d -> (x+d, y+d)), (\ d -> (x+d, y-d)), (\ d -> (x-d, y-d)), (\ d -> (x-d, y+d))]
+  moveInDiagonal gameState (x, y) distance = L.concatMap (checkDirection gameState distance) [(\ d -> (x+d, y+d)), (\ d -> (x+d, y-d)), (\ d -> (x-d, y-d)), (\ d -> (x-d, y+d))]
 
   moveHorse :: GameState -> Coords -> [Coords]
   moveHorse (board, color) (x, y) =  L.filter (\coords ->

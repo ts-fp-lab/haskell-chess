@@ -9,7 +9,6 @@ module Datatypes where
   data Color = Black | White deriving (Eq, Show)
   type PieceInfo = (PieceType, Color)
 
-  -- [TODO] - Create Number class constrained between 1 & 8
   type Coords = (Int, Int)
   type Move = (Coords, Coords)
 

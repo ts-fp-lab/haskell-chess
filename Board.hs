@@ -25,6 +25,7 @@ module Board where
   matrixToLists :: Vector (Vector a) -> [[a]]
   matrixToLists = toList . V.map toList
 
+  -- TODO5: make getSquare secure (with a Maybe?)
   getSquare :: Board -> Coords -> Square
   getSquare board (x, y) = board!y!x
 
