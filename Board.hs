@@ -19,8 +19,8 @@ module Board where
     "   A B C D E F G H   "
     ])
 
-  concat :: [[a]] -> [a]
-  concat xss = L.foldr (L.++) [] xss
+  -- concat :: [[a]] -> [a]
+  -- concat xss = L.foldr (L.++) [] xss
 
   matrixToLists :: Vector (Vector a) -> [[a]]
   matrixToLists = toList . V.map toList

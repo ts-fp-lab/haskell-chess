@@ -92,7 +92,7 @@ module Main where
     if getPlayer gameState players == Human then
       gameTurnHuman gameState players gameName
     else
-      makeMoveAndCheckFinished gameState players gameName $ AI.getMove gameState
+      makeMoveAndCheckFinished gameState players gameName $ (AI.getMove gameState 10)
 
   executeCommandExits :: GameState -> String -> [String] -> IO Bool
   executeCommandExits state _ ("quit":rest) = do

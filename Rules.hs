@@ -59,7 +59,7 @@ module Rules where
 
   boardPossibleMoves :: GameState -> [Move]
   boardPossibleMoves gameState =
-    let listMatrix = V.imap (\i line -> V.imap (\j square -> getListFromCoords gameState (i,j)) line) (fst gameState) in
+    let listMatrix = V.imap (\lineNb line -> V.imap (\colNb square -> getListFromCoords gameState (lineNb, colNb)) line) (fst gameState) in
       L.concat . L.concat $ matrixToLists listMatrix
 
   movePawn :: GameState -> Coords -> Int -> [Coords]
