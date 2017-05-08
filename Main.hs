@@ -12,17 +12,11 @@ module Main where
   import Datatypes
   import Board
   import Rules
+  import AI
 
   -- type Choice = (String, String)
 
   -- data Choice a = (String, String, a)
-
-
-  chessCoords :: Coords -> String
-  chessCoords (x, y) = [Data.Char.chr (x+65)] ++ (show (8 - y))
-
-  chessMove :: Move -> String
-  chessMove (origin, destination) = (chessCoords origin) ++ "->" ++ (chessCoords destination)
 
   -- indexesToCoords :: Int -> Int -> Coords
   -- indexesToCoords x y = (read $ (:[]) $ Data.Char.chr ((Data.Char.ord (head (show (minBound :: Letter))) + x)), 8 - y)
@@ -48,42 +42,57 @@ module Main where
   -- IO --
   --------
 
-  queryMove :: GameState -> IO (Either Move [String])
-  queryMove gameState = do
+  queryMoveOrCommand :: GameState -> IO (Either Move [String])
+  queryMoveOrCommand gameState = do
     moveIO <- getLine
     case moveOrCommandIO moveIO of
       Left Nothing -> do
         putStrLn "Wrong Input. Retry!"
-        queryMove gameState
+        queryMoveOrCommand gameState
       Left (Just move) -> do
-        if isMoveAllowed gameState move then
-          return (Left move)
-        else do
-          putStrLn "Impossible Move. Retry!"
-          putStrLn ("Possible Moves:" ++ concatMap chessCoords (possibleMoves gameState (fst move)))
-          queryMove gameState
+        case moveReturnsError gameState move of
+          Nothing -> return (Left move)
+          Just error -> do
+            putStrLn error
+            queryMoveOrCommand gameState
       Right command -> return (Right command)
 
+  getPlayer :: GameState -> PlayerCouple -> Player
+  getPlayer (board, White) (playerWhite, playerBlack) = playerWhite
+  getPlayer (board, Black) (playerWhite, playerBlack) = playerBlack
 
-  gameTurn :: GameState -> String -> IO ()
-  gameTurn (board, color) gameName = do
-    putStr $ boardToAscii board
-    putStr ((show color) ++ "'s turn. Move? (eg. d2d4)\n")
-    moveIO <- queryMove (board, color)
+
+  gameTurnHuman :: GameState -> PlayerCouple -> String -> IO ()
+  gameTurnHuman gameState players gameName = do
+    putStr ((show $ snd gameState) ++ "'s turn. Move? (eg. d2d4)\n")
+    moveIO <- queryMoveOrCommand gameState
     case moveIO of
       Left move -> do
-        let newBoard = makeMove board move
-        let winner = gameOverWinner newBoard
-        case winner of
-          Nothing -> do
-            saveMoveToFile move gameName
-            gameTurn (newBoard, next color) gameName
-          Just winner -> putStr ((show winner) ++ " won!")
+        makeMoveAndCheckFinished gameState players gameName move
       Right command -> do
-        exit <- executeCommandExits (board, color) gameName command
+        exit <- executeCommandExits gameState gameName command
         if not exit
-          then gameTurn (board, color) gameName
+          then gameTurn gameState players gameName
           else quitGame gameName
+
+  makeMoveAndCheckFinished:: GameState -> PlayerCouple -> String -> Move -> IO ()
+  makeMoveAndCheckFinished (board, color) players gameName move = do
+    let newBoard = makeMove board move
+    let winner = gameOverWinner newBoard
+    case winner of
+      Nothing -> do
+        saveMoveToFile move gameName
+        gameTurn (newBoard, next color) players gameName
+      Just winner -> putStr ((show winner) ++ " won!")
+
+  gameTurn :: GameState -> PlayerCouple -> String -> IO ()
+  gameTurn gameState players gameName = do
+    putStr $ boardToAscii $ fst gameState
+
+    if getPlayer gameState players == Human then
+      gameTurnHuman gameState players gameName
+    else
+      makeMoveAndCheckFinished gameState players gameName $ AI.getMove gameState
 
   executeCommandExits :: GameState -> String -> [String] -> IO Bool
   executeCommandExits state _ ("quit":rest) = do
@@ -107,8 +116,8 @@ module Main where
         choiceMaker question choices
       Just (_, _, result) -> return result
 
-  choosePlayer :: IO Player
-  choosePlayer = choiceMaker "Who will you beat?" [
+  choosePlayer :: String -> IO Player
+  choosePlayer playerColor = choiceMaker ("Who is " ++ playerColor ++ "?") [
       ("1H", "1. Human (h)", Human), -- ("Human", Human)
       ("2I", "2. IA (i)", IA) -- ("IA", IA)
     ]
@@ -131,10 +140,11 @@ module Main where
   newGame :: IO ()
   newGame = do
     putStrLn "Starting new game"
-    player <- choosePlayer
+    playerWhite <- choosePlayer "White"
+    playerBlack <- choosePlayer "Black"
     initialGameState <- getInitialGameState
     currentTime <- getCurrentTime
-    gameTurn initialGameState (show currentTime)
+    gameTurn initialGameState (playerWhite, playerBlack) (show currentTime)
 
   loadGame :: IO ()
   loadGame = do
@@ -148,15 +158,17 @@ module Main where
     let tempFileName = (buildFileName gameName True)
     copyFile loadFileName tempFileName
     fileContents <- readFile tempFileName
-    -- let board = readBoard fileContents
+    playerWhite <- choosePlayer "White"
+    playerBlack <- choosePlayer "Black"
+
     let moves = map (read::String->Move) $ filter ("" /=) $ splitOn "\n" fileContents
     initialGameState <- getInitialGameState
-    let newGameState = foldl (\(board, color) move -> (makeMove board move, next color)) initialGameState moves
-    gameTurn newGameState gameName
+    let loadedGameState = foldl (\(board, color) move -> (makeMove board move, next color)) initialGameState moves
+    gameTurn loadedGameState (playerWhite, playerBlack) gameName
 
   saveGame :: String -> String -> IO ()
   saveGame oldGameName newGameName = do
-    copyFile (buildFileName oldGameName True) (buildFileName newGameName False) 
+    copyFile (buildFileName oldGameName True) (buildFileName newGameName False)
     putStrLn "Game saved"
 
   quitGame :: String -> IO ()

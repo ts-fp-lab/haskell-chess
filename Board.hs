@@ -1,24 +1,29 @@
 module Board where
-  import Data.Vector
+  import Data.Vector as V
+  import Data.List as L
   import Datatypes
   import Data.Char
-  import Data.List
 
   writeBoard :: Board -> String
-  writeBoard board = (intercalate "\n" $ toList $ Data.Vector.map (toList . Data.Vector.map (Data.List.head . show)) board) Data.List.++ "\n"
+  writeBoard board = (intercalate "\n" $ toList $ V.map (toList . V.map (L.head . show)) board) L.++ "\n"
 
   boardLineToAscii :: Int -> Vector Square -> String
-  boardLineToAscii nb line = (show nb) Data.List.++ " ║" Data.List.++ (unwords (Data.List.map squareToAscii (toList line))) Data.List.++ "║ "  Data.List.++ (show nb)
+  boardLineToAscii nb line = (show nb) L.++ " ║" L.++ (unwords (L.map squareToAscii (toList line))) L.++ "║ "  L.++ (show nb)
 
   boardToAscii :: Board -> String
   boardToAscii board = unlines ([
     "   A B C D E F G H   ",
-    "  ╔═══════════════╗  "] Data.List.++
-    (toList (Data.Vector.imap (\lineNb line -> boardLineToAscii (8 - lineNb) line) board)) Data.List.++
+    "  ╔═══════════════╗  "] L.++
+    (toList (V.imap (\lineNb line -> boardLineToAscii (8 - lineNb) line) board)) L.++
     ["  ╚═══════════════╝  ",
     "   A B C D E F G H   "
     ])
 
+  concat :: [[a]] -> [a]
+  concat xss = L.foldr (L.++) [] xss
+
+  matrixToLists :: Vector (Vector a) -> [[a]]
+  matrixToLists = toList . V.map toList
 
   getSquare :: Board -> Coords -> Square
   getSquare board (x, y) = board!y!x
@@ -33,11 +38,11 @@ module Board where
 
   gameOverWinner :: Board -> Maybe Color
   gameOverWinner board =
-    let kings = Data.Vector.concatMap (Data.Vector.filter isKing) board
-    in if Data.Vector.length kings == 2 then Nothing else getColor (Data.Vector.head kings)
+    let kings = V.concatMap (V.filter isKing) board
+    in if V.length kings == 2 then Nothing else getColor (V.head kings)
 
   readBoard :: String -> Board
-  readBoard boardString = fromList $ Data.List.map fromList (Data.List.map (Data.List.map (read . (:[]))) $ lines boardString)
+  readBoard boardString = fromList $ L.map fromList (L.map (L.map (read . (:[]))) $ lines boardString)
 
   makeMove :: Board -> Move -> Board
   makeMove board move = imap (\y line ->
