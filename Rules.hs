@@ -66,12 +66,17 @@ module Rules where
   movePawn gameState origin pawnDirection = (movePawnStraight gameState origin pawnDirection) L.++ (movePawnEat gameState origin pawnDirection)
 
   movePawnStraight :: GameState -> Coords -> Int -> [Coords]
-  movePawnStraight (board, color) (x, y) pawnDirection = L.filter (\coords -> (getSquare board coords) == Empty) ([(x, y+pawnDirection)] L.++ (if y==1 && pawnDirection == 1 || y == 6 && pawnDirection == -1 then [(x, y+2*pawnDirection)] else []))
+  -- TODO - Write rule for end of board
+  movePawnStraight (board, color) (x, y) pawnDirection =
+    L.filter
+      (\coords -> isInBoard coords && (getSquare board coords) == Empty)
+      ([(x, y+pawnDirection)] L.++ (if y==1 && pawnDirection == 1 || y == 6 && pawnDirection == -1 then [(x, y+2*pawnDirection)] else []))
 
   movePawnEat :: GameState -> Coords -> Int -> [Coords]
+  -- TODO - Write rule for end of board
   movePawnEat (board, color) (x, y) pawnDirection = (
     L.filter (
-      \coords -> isPlayerPiece (next color) (getSquare board coords)
+      \coords -> isInBoard coords && isPlayerPiece (next color) (getSquare board coords)
     ) [(x+1, y+pawnDirection), (x-1, y+pawnDirection)])
 
   moveInLine :: GameState -> Coords -> Int -> [Coords]

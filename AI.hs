@@ -6,5 +6,9 @@ module AI where
 
 
 
-  getMove :: GameState -> Move
-  getMove gameState = head $ boardPossibleMoves gameState
+  getMove :: GameState -> Int -> Move
+  getMove gameState seed = possibleMoves!!index
+  -- getMove gameState seed = head possibleMoves
+    where
+      possibleMoves = boardPossibleMoves gameState
+      index = seed `mod` (length possibleMoves)

@@ -6,6 +6,7 @@ module Main where
   import Data.List.Split
   import Data.Foldable
   import Data.Time.Clock
+  import Data.Time.Clock.POSIX
   import System.IO
   import System.Directory
 
@@ -92,7 +93,9 @@ module Main where
     if getPlayer gameState players == Human then
       gameTurnHuman gameState players gameName
     else
-      makeMoveAndCheckFinished gameState players gameName $ AI.getMove gameState
+      do 
+        seedPosixTime <- getPOSIXTime
+        makeMoveAndCheckFinished gameState players gameName $ AI.getMove gameState $ fromIntegral $ round seedPosixTime
 
   executeCommandExits :: GameState -> String -> [String] -> IO Bool
   executeCommandExits state _ ("quit":rest) = do
