@@ -25,6 +25,17 @@ module Board where
   matrixToLists :: Vector (Vector a) -> [[a]]
   matrixToLists = toList . V.map toList
 
+  reduceLine :: (a -> Int -> Square -> a) -> a -> Vector Square -> a
+  reduceLine fn accumulator line = V.ifoldl fn accumulator line
+
+  imapBoard :: (Coords -> Square -> a) -> Board -> Vector (Vector a)
+  imapBoard fn board = imap (\lineNb line -> imap (\colNb square -> fn (lineNb, colNb) square) line) board
+
+  reduceBoard :: (Coords -> Square -> a) -> (a -> a -> a) -> a -> Board -> a
+  reduceBoard mapFn reduceFn accumulator board =
+    let mappedBoard = imapBoard mapFn board in
+      V.foldl (\acc line -> V.foldl reduceFn acc line) accumulator mappedBoard
+
   -- TODO5: make getSquare secure (with a Maybe?)
   getSquare :: Board -> Coords -> Square
   getSquare board (x, y) = board!y!x

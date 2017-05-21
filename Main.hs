@@ -84,7 +84,7 @@ module Main where
       Nothing -> do
         saveMoveToFile move gameName
         gameTurn (newBoard, next color) players gameName
-      Just winner -> putStr ((show winner) ++ " won!")
+      Just winner -> putStr ((show winner) ++ " won!\n")
 
   gameTurn :: GameState -> PlayerCouple -> String -> IO ()
   gameTurn gameState players gameName = do
