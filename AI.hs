@@ -3,8 +3,8 @@ module AI where
   import Board
   import Rules
 
-  import Data.List
-  -- -- TODO: replace by official function that MUST exist
+  -- import Data.List
+  -- TODO: replace by official function
   myMinimumBy :: (a -> Int) -> [a] -> a
   myMinimumBy fn [a] = a
   myMinimumBy fn (a:b) = if (fn a) < (fn minRest) then a else minRest
@@ -27,7 +27,6 @@ module AI where
   getMoveMinMax (board, color) = bestMove
     where
       possibleMoves = boardPossibleMoves (board, color)
-      possibleBoards = map (\move -> makeMove board move) possibleMoves
       bestMove = myMinimumBy (moveValue (board, color)) possibleMoves
 
   moveValue :: GameState -> Move -> Int
