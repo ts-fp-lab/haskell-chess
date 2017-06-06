@@ -96,9 +96,9 @@ module Main where
       do
         -- seedPosixTime <- getPOSIXTime
         let possibleMoves = boardPossibleMoves gameState
-        putStrLn $ intercalate "\n" $ map (\move -> (chessMove move) ++ ":" ++ (show $ AI.moveValue gameState move)) possibleMoves
+        putStrLn $ intercalate "\n" $ map (\move -> (chessMove move) ++ ":" ++ (show $ AI.moveValue (snd gameState) gameState move)) possibleMoves
         let move = AI.getMove gameState 0
-        putStrLn $ "Move:" ++ (chessMove move) ++ " score: " ++ (show $ AI.moveValue gameState move)
+        putStrLn $ "Move:" ++ (chessMove move) ++ " score: " ++ (show $ AI.moveValue (snd gameState) gameState move)
         makeMoveAndCheckFinished gameState players gameName move
 
   executeCommandExits :: GameState -> String -> [String] -> IO Bool

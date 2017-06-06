@@ -26,11 +26,11 @@ module Rules where
     | otherwise = Nothing
     where
       square = getSquare board origin
-      possibleDestinations = possibleDestinationsFromOrigin (board, color) origin
+      possibleDestinations = possibleDestinationsFromOrigin board color origin
 
   -- TODO1: if king check then possible moves change
-  possibleDestinationsFromOrigin :: GameState -> Coords -> [Coords]
-  possibleDestinationsFromOrigin (board, color) origin =
+  possibleDestinationsFromOrigin :: Board -> Color -> Coords -> [Coords]
+  possibleDestinationsFromOrigin board color origin =
     case getSquare board origin of
       Empty -> []
       Piece (pieceType, pieceColor) ->
@@ -52,7 +52,7 @@ module Rules where
   possibleMovesFromOrigin origin (dest:rest) = ((origin, dest):(possibleMovesFromOrigin origin rest))
 
   getListFromCoords :: GameState -> Coords -> [Move]
-  getListFromCoords gameState coords = possibleMovesFromOrigin coords (possibleDestinationsFromOrigin gameState coords)
+  getListFromCoords (board, color) coords = possibleMovesFromOrigin coords (possibleDestinationsFromOrigin board color coords)
 
   boardPossibleMoves :: GameState -> [Move]
   boardPossibleMoves gameState =
