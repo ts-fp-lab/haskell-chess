@@ -12,32 +12,75 @@ module AI where
       minRest = myMinimumBy fn b
 
 
+
   getMove :: GameState -> Int -> Move
-  getMove gameState seed = getMoveMinMax gameState
+  getMove state seed = getBestMoveMinMax state
 
-  -- TODO6: Minmax algorithm
 
-  getMoveRandom :: GameState -> Int -> Move
-  getMoveRandom gameState seed = possibleMoves!!index
+  getRandomMove :: GameState -> Int -> Move
+  getRandomMove state seed = possibleMoves!!index
     where
-      possibleMoves = boardPossibleMoves gameState
+      possibleMoves = boardPossibleMoves state
       index = seed `mod` (length possibleMoves)
 
-  getMoveMinMax :: GameState -> Move
-  getMoveMinMax (board, color) = bestMove
+  getBestMoveNoRecursion :: GameState -> Move
+  getBestMoveNoRecursion state = bestMove
     where
-      possibleMoves = boardPossibleMoves (board, color)
-      bestMove = myMinimumBy (moveValue (board, color)) possibleMoves
+      possibleMoves = boardPossibleMoves state
+      bestMove = myMinimumBy (moveValue state) possibleMoves
+
+  getBestMoveMinMax :: GameState -> Move
+  getBestMoveMinMax state = minimax state 1
+
+
+
+  -- Code inspired from the excellent http://giocc.com/concise-implementation-of-minimax-through-higher-order-functions.html
+
+  foldMoves :: GameState -> Int -> (Move, Int) -> Move -> (Move, Int)
+  foldMoves state depth (currentBestMove, currentBestScore) move
+    | nextScore > currentBestScore = (move, nextScore)
+    | otherwise = (currentBestMove, currentBestScore)
+    where
+      nextScore = minPlay depth (makeMove state move)
+
+  minimax :: GameState -> Int -> Move
+  minimax state depth = bestMove
+    where
+      moves = boardPossibleMoves state
+      firstPossibleMove = head moves
+      firstPossibleScore = boardHeuristic (makeMove state firstPossibleMove)
+      (bestMove, bestScore) = foldl (foldMoves state depth) (firstPossibleMove, firstPossibleScore) moves
+
+
+  minPlay :: Int -> GameState -> Int
+  minPlay 0 state = boardHeuristic state
+  minPlay depth state = minimum nextScores
+    where
+      nextMoves = boardPossibleMoves state
+      nextStates = map (makeMove state) nextMoves
+      nextScores = map (maxPlay depth) nextStates
+
+
+  maxPlay :: Int -> GameState -> Int
+  maxPlay 0 state = boardHeuristic state
+  maxPlay depth state = maximum nextScores
+    where
+      nextMoves = boardPossibleMoves state
+      nextStates = map (makeMove state) nextMoves
+      nextScores = map (minPlay (depth-1)) nextStates
+
 
   moveValue :: GameState -> Move -> Int
-  moveValue (board, color) move = boardHeuristic (makeMove board move, next color)
+  moveValue state move = boardHeuristic (makeMove state move)
 
   -- The heuristic depends on:
   --  - points Diff on board
   --  - nb of square threat
 
   boardHeuristic :: GameState -> Int
-  boardHeuristic state = (onBoardPieceValues state) + (squaresUnderControl state)
+  boardHeuristic state = 0 +
+    100 * (onBoardPieceValues state) +
+    1 * (squaresUnderControl state)
 
   pieceValue :: PieceType -> Int
   pieceValue Queen = 10
@@ -49,8 +92,8 @@ module AI where
 
   colorFactor :: Color -> Color -> Int
   colorFactor col1 col2
-    | col1 == col2 = 1
-    | otherwise = 0
+    | col1 == col2 = -1
+    | otherwise = 1
 
   squareValue :: Square -> Color -> Int
   squareValue Empty playerColor = 0

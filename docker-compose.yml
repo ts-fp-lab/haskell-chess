@@ -1,0 +1,5 @@
+web:
+  build: .
+  command: runhaskell /haskell/Main.hs
+  volumes:
+    - .:/haskell

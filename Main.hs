@@ -78,7 +78,7 @@ module Main where
 
   makeMoveAndCheckFinished:: GameState -> PlayerCouple -> String -> Move -> IO ()
   makeMoveAndCheckFinished (board, color) players gameName move = do
-    let newBoard = makeMove board move
+    let newBoard = boardMove board move
     let winner = gameOverWinner newBoard
     case winner of
       Nothing -> do
@@ -94,8 +94,12 @@ module Main where
       gameTurnHuman gameState players gameName
     else
       do
-        seedPosixTime <- getPOSIXTime
-        makeMoveAndCheckFinished gameState players gameName $ AI.getMove gameState $ fromIntegral $ round seedPosixTime
+        -- seedPosixTime <- getPOSIXTime
+        let possibleMoves = boardPossibleMoves gameState
+        putStrLn $ intercalate "\n" $ map (\move -> (chessMove move) ++ ":" ++ (show $ AI.moveValue gameState move)) possibleMoves
+        let move = AI.getMove gameState 0
+        putStrLn $ "Move:" ++ (chessMove move) ++ " score: " ++ (show $ AI.moveValue gameState move)
+        makeMoveAndCheckFinished gameState players gameName move
 
   executeCommandExits :: GameState -> String -> [String] -> IO Bool
   executeCommandExits state _ ("quit":rest) = do
@@ -166,7 +170,7 @@ module Main where
 
     let moves = map (read::String->Move) $ filter ("" /=) $ splitOn "\n" fileContents
     initialGameState <- getInitialGameState
-    let loadedGameState = foldl (\(board, color) move -> (makeMove board move, next color)) initialGameState moves
+    let loadedGameState = foldl makeMove initialGameState moves
     gameTurn loadedGameState (playerWhite, playerBlack) gameName
 
   saveGame :: String -> String -> IO ()

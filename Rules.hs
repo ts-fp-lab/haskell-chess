@@ -5,10 +5,6 @@ module Rules where
   import Data.Char
   import Board
 
-  next :: Color -> Color
-  next White = Black
-  next Black = White
-
   chessCoords :: Coords -> String
   chessCoords (x, y) = [Data.Char.chr (x+65)] L.++ (show (8 - y))
 

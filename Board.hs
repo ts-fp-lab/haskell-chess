@@ -4,6 +4,11 @@ module Board where
   import Datatypes
   import Data.Char
 
+
+  next :: Color -> Color
+  next White = Black
+  next Black = White
+
   writeBoard :: Board -> String
   writeBoard board = (intercalate "\n" $ toList $ V.map (toList . V.map (L.head . show)) board) L.++ "\n"
 
@@ -56,9 +61,12 @@ module Board where
   readBoard :: String -> Board
   readBoard boardString = fromList $ L.map fromList (L.map (L.map (read . (:[]))) $ lines boardString)
 
-  makeMove :: Board -> Move -> Board
-  makeMove board move = imap (\y line ->
+  boardMove :: Board -> Move -> Board
+  boardMove board move = imap (\y line ->
     imap (\x square -> replaceSquare board move square (x, y)) line) board
+
+  makeMove :: GameState -> Move -> GameState
+  makeMove (board, color) move = (boardMove board move, next color)
 
   replaceSquare ::  Board -> Move -> Square -> Coords -> Square
   replaceSquare board (origin, destination) square coords
