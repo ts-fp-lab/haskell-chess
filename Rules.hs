@@ -28,6 +28,8 @@ module Rules where
       square = getSquare board origin
       possibleDestinations = possibleDestinationsFromOrigin board color origin square
 
+
+  -- TODO: Add castling
   basicPieceTypeMover :: PieceType -> (Board -> Color -> Coords -> [Coords])
   basicPieceTypeMover King = moveInAllDirections 1
   basicPieceTypeMover Queen = moveInAllDirections 8

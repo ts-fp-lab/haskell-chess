@@ -14,6 +14,7 @@ module Main where
   import Board
   import Rules
   import AI
+  import Heuristics
 
   -- type Choice = (String, String)
 
@@ -64,16 +65,17 @@ module Main where
 
 
   gameTurnHuman :: GameState -> PlayerCouple -> String -> IO ()
-  gameTurnHuman gameState players gameName = do
-    putStr ((show $ snd gameState) ++ "'s turn. Move? (eg. d2d4)\n")
-    moveIO <- queryMoveOrCommand gameState
+  gameTurnHuman state players gameName = do
+    let (board, color) = state
+    putStrLn $ (show color) ++ "'s turn. Move? (eg. d2d4) Current board score:" ++ (show $ boardHeuristic board color)
+    moveIO <- queryMoveOrCommand state
     case moveIO of
       Left move -> do
-        makeMoveAndCheckFinished gameState players gameName move
+        makeMoveAndCheckFinished state players gameName move
       Right command -> do
-        exit <- executeCommandExits gameState gameName command
+        exit <- executeCommandExits state gameName command
         if not exit
-          then gameTurn gameState players gameName
+          then gameTurn state players gameName
           else quitGame gameName
 
   makeMoveAndCheckFinished:: GameState -> PlayerCouple -> String -> Move -> IO ()
@@ -87,19 +89,21 @@ module Main where
       Just winner -> putStr ((show winner) ++ " won!\n")
 
   gameTurn :: GameState -> PlayerCouple -> String -> IO ()
-  gameTurn gameState players gameName = do
-    putStr $ boardToAscii $ fst gameState
+  gameTurn state players gameName = do
+    let (board, color) = state
+    putStr $ boardToAscii board
 
-    if getPlayer gameState players == Human then
-      gameTurnHuman gameState players gameName
+    if getPlayer state players == Human then
+      gameTurnHuman state players gameName
     else
       do
         -- seedPosixTime <- getPOSIXTime
-        let possibleMoves = statePossibleMoves gameState
-        putStrLn $ intercalate "\n" $ map (\move -> (chessMove move) ++ ":" ++ (show $ AI.moveValue gameState move)) possibleMoves
-        let move = AI.getMove gameState 0
-        putStrLn $ "Move:" ++ (chessMove move) ++ " score: " ++ (show $ AI.moveValue gameState move)
-        makeMoveAndCheckFinished gameState players gameName move
+        putStrLn $ "Current Board Score:" ++ (show $ boardHeuristic board color)
+        let possibleMoves = statePossibleMoves state
+        putStrLn $ intercalate "\n" $ map (\move -> (chessMove move) ++ ":" ++ (show $ moveValue board color move)) possibleMoves
+        let move = AI.getMove state 0
+        putStrLn $ "Move:" ++ (chessMove move) ++ " score: " ++ (show $ moveValue board color move)
+        makeMoveAndCheckFinished state players gameName move
 
   executeCommandExits :: GameState -> String -> [String] -> IO Bool
   executeCommandExits state _ ("quit":rest) = do
