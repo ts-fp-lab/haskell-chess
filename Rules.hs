@@ -4,6 +4,7 @@ module Rules where
   import Data.Vector as V
   import Data.Char
   import Board
+  import Data.Maybe
 
   chessCoords :: Coords -> String
   chessCoords (x, y) = [Data.Char.chr (x+65)] L.++ (show (8 - y))
@@ -13,7 +14,6 @@ module Rules where
 
   isInBoard :: Coords -> Bool
   isInBoard (x, y) = x >= 0 && x < 8 && y >= 0 && y < 8
-
 
   isPlayerPiece :: Color -> Square -> Bool
   isPlayerPiece _ Empty = False
@@ -26,80 +26,95 @@ module Rules where
     | otherwise = Nothing
     where
       square = getSquare board origin
-      possibleDestinations = possibleDestinationsFromOrigin board color origin
+      possibleDestinations = possibleDestinationsFromOrigin board color origin square
 
-  -- TODO1: if king check then possible moves change
-  possibleDestinationsFromOrigin :: Board -> Color -> Coords -> [Coords]
-  possibleDestinationsFromOrigin board color origin =
-    case getSquare board origin of
+  basicPieceTypeMover :: PieceType -> (Board -> Color -> Coords -> [Coords])
+  basicPieceTypeMover King = moveInAllDirections 1
+  basicPieceTypeMover Queen = moveInAllDirections 8
+  basicPieceTypeMover Rook = moveInLine 8
+  basicPieceTypeMover Bishop = moveInDiagonal 8
+  basicPieceTypeMover Horse = moveHorse
+  basicPieceTypeMover Pawn = movePawn
+
+  pieceTypeMover :: PieceType -> Board -> Color -> Coords -> [Coords]
+  pieceTypeMover King board color origin = filterCheckPosition board color origin $ basicPieceTypeMover King board color origin
+  pieceTypeMover pieceType board color origin = if isCheck board color then [] else basicPieceTypeMover pieceType board color origin
+
+  possibleDestinationsFromOrigin :: Board -> Color -> Coords -> Square -> [Coords]
+  possibleDestinationsFromOrigin board color origin square =
+    case square of
       Empty -> []
-      Piece (pieceType, pieceColor) ->
-        if pieceColor == color then possibleDestinationsPerType (board, color) origin pieceType pieceColor
+      Piece (pieceType, pieceColor) -> if color == pieceColor
+        then pieceTypeMover pieceType board pieceColor origin
         else []
 
-  possibleDestinationsPerType :: GameState -> Coords -> PieceType -> Color -> [Coords]
-  -- TODO4: castling
-  possibleDestinationsPerType gameState origin King _ = (moveInLine gameState origin 1) L.++ (moveInDiagonal gameState origin 1)
-  possibleDestinationsPerType gameState origin Queen _ = (moveInLine gameState origin 8) L.++ (moveInDiagonal gameState origin 8)
-  possibleDestinationsPerType gameState origin Rook _ = moveInLine gameState origin 8
-  possibleDestinationsPerType gameState origin Bishop _ = moveInDiagonal gameState origin 8
-  possibleDestinationsPerType gameState origin Horse _ = moveHorse gameState origin
-  possibleDestinationsPerType gameState origin Pawn White = movePawn gameState origin (-1)
-  possibleDestinationsPerType gameState origin Pawn Black = movePawn gameState origin (1)
+  coordsToMoves :: Coords -> [Coords] -> [Move]
+  coordsToMoves origin = L.map (\dest -> (origin, dest))
 
-  possibleMovesFromOrigin :: Coords -> [Coords] -> [Move]
-  possibleMovesFromOrigin origin [] = []
-  possibleMovesFromOrigin origin (dest:rest) = ((origin, dest):(possibleMovesFromOrigin origin rest))
+  possibleMovesFromOrigin :: Board -> Color -> Coords -> Square -> [Move]
+  possibleMovesFromOrigin board color origin square = coordsToMoves origin $ possibleDestinationsFromOrigin board color origin square
 
-  getListFromCoords :: GameState -> Coords -> [Move]
-  getListFromCoords (board, color) coords = possibleMovesFromOrigin coords (possibleDestinationsFromOrigin board color coords)
+  statePossibleMoves :: GameState -> [Move]
+  statePossibleMoves (board, color) = reduceBoard (possibleMovesFromOrigin board color) (\ result moves -> result L.++ moves) [] board
 
-  boardPossibleMoves :: GameState -> [Move]
-  boardPossibleMoves gameState =
-    let listMatrix = V.imap (\lineNb line -> V.imap (\colNb square -> getListFromCoords gameState (lineNb, colNb)) line) (fst gameState) in
-      L.concat . L.concat $ matrixToLists listMatrix
+  movePawn :: Board -> Color -> Coords -> [Coords]
+  movePawn board color origin = (movePawnStraight board color origin) L.++ (movePawnEat board color origin)
 
-  movePawn :: GameState -> Coords -> Int -> [Coords]
-  movePawn gameState origin pawnDirection = (movePawnStraight gameState origin pawnDirection) L.++ (movePawnEat gameState origin pawnDirection)
-
-  movePawnStraight :: GameState -> Coords -> Int -> [Coords]
-  -- TODO2 - Write rule for end of board transformation as Queen or other
-  movePawnStraight (board, color) (x, y) pawnDirection =
+  movePawnStraight :: Board -> Color -> Coords -> [Coords]
+  movePawnStraight board color (x, y) =
     L.filter
       (\coords -> isInBoard coords && (getSquare board coords) == Empty)
-      ([(x, y+pawnDirection)] L.++ (if y==1 && pawnDirection == 1 || y == 6 && pawnDirection == -1 then [(x, y+2*pawnDirection)] else []))
+      ([(x, y+pawnDirectionFactor)] L.++ (if y==1 && color == Black || y == 6 && color == White then [(x, y+2*pawnDirectionFactor)] else []))
+    where
+      pawnDirectionFactor = pawnDirection color
 
-  movePawnEat :: GameState -> Coords -> Int -> [Coords]
-  -- TODO2 - Write rule for end of board
   -- TODO3 - Write en passant rule
-  movePawnEat (board, color) (x, y) pawnDirection = (
+  movePawnEat :: Board -> Color -> Coords -> [Coords]
+  movePawnEat board color (x, y) = (
     L.filter (
       \coords -> isInBoard coords && isPlayerPiece (next color) (getSquare board coords)
-    ) [(x+1, y+pawnDirection), (x-1, y+pawnDirection)])
+    ) [(x+1, y+pawnDirectionFactor), (x-1, y+pawnDirectionFactor)])
+    where
+      pawnDirectionFactor = pawnDirection color
 
-  moveInLine :: GameState -> Coords -> Int -> [Coords]
-  moveInLine gameState (x, y) distance = L.concatMap (checkDirection gameState distance) [(\d -> (x+d, y)), (\d -> (x-d, y)), (\d -> (x, y+d)), (\d -> (x, y-d))]
+  moveInAllDirections :: Int -> Board -> Color -> Coords -> [Coords]
+  moveInAllDirections distance board coords origin = (moveInLine distance board coords origin) L.++ (moveInDiagonal distance board coords origin)
 
-  moveInDiagonal :: GameState -> Coords -> Int -> [Coords]
-  moveInDiagonal gameState (x, y) distance = L.concatMap (checkDirection gameState distance) [(\ d -> (x+d, y+d)), (\ d -> (x+d, y-d)), (\ d -> (x-d, y-d)), (\ d -> (x-d, y+d))]
+  moveInLine :: Int -> Board -> Color -> Coords -> [Coords]
+  moveInLine distance board color (x, y) = L.concatMap (checkDirection distance board color) [(\d -> (x+d, y)), (\d -> (x-d, y)), (\d -> (x, y+d)), (\d -> (x, y-d))]
 
-  moveHorse :: GameState -> Coords -> [Coords]
-  moveHorse (board, color) (x, y) =  L.filter (\coords ->
+  moveInDiagonal :: Int -> Board -> Color -> Coords -> [Coords]
+  moveInDiagonal distance board color (x, y) = L.concatMap (checkDirection distance board color) [(\ d -> (x+d, y+d)), (\ d -> (x+d, y-d)), (\ d -> (x-d, y-d)), (\ d -> (x-d, y+d))]
+
+  moveHorse :: Board -> Color -> Coords -> [Coords]
+  moveHorse board color (x, y) =  L.filter (\coords ->
     let square = getSquare board coords in
     (isInBoard coords) && (not (isPlayerPiece color square))
     ) [(x+2, y+1), (x+1, y+2), (x+2, y-1), (x+1, y-2), (x-2, y-1), (x-1, y-2), (x-2, y+1), (x-1, y+2)]
 
-  canContinueInDirection :: GameState -> Coords -> Maybe Bool
-  canContinueInDirection (board, color) coords
-    | (not . isInBoard $ coords) || (isPlayerPiece color square) = Nothing -- Stop scanning
-    | otherwise = Just (square == Empty) -- Empty: keep scanning, opponent piece: stop but keep move as possible
-    where
-      square = getSquare board coords
-
-  checkDirection :: GameState -> Int -> (Int -> Coords) -> [Coords]
-  checkDirection gameState distance transformator = L.foldr (\coords ys ->
-    case canContinueInDirection gameState coords of
+  checkDirection :: Int -> Board -> Color -> (Int -> Coords) -> [Coords]
+  checkDirection distance board color transformator = L.foldr (\coords ys ->
+    case canContinueInDirection board color coords of
       Nothing -> []
       Just False -> [coords]
       Just True -> (coords:ys)
     ) [] $ L.map transformator [1..distance]
+
+  canContinueInDirection :: Board -> Color -> Coords -> Maybe Bool
+  canContinueInDirection board color coords
+    | (not . isInBoard $ coords) || (isPlayerPiece color square) = Nothing -- Stop scanning
+    | otherwise = Just (square == Empty) -- Empty: keep scanning, opponent piece: stop scanning but possible move
+    where
+      square = getSquare board coords
+
+  pawnDirection :: Color -> Int
+  pawnDirection White = -1
+  pawnDirection Black = 1
+
+  filterCheckPosition :: Board -> Color -> Coords  -> [Coords] -> [Coords]
+  filterCheckPosition board color origin = L.filter (\destination -> isCheck (boardMove board (origin, destination)) color)
+
+  isCheck :: Board -> Color -> Bool
+  isCheck board color = False
+    -- let kingCoords = fromJust (findBoard (\coords square -> isKing square) board) in
+    -- reduceBoard (\origin square -> kingCoords `L.elem` (possibleDestinationsFromOrigin board (next color) origin square)) (\ result squareCheck -> result || squareCheck) False board

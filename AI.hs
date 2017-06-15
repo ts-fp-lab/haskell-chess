@@ -3,15 +3,12 @@ module AI where
   import Board
   import Rules
 
-  -- import Data.List
   -- TODO: replace by official function
   myMinimumBy :: (a -> Int) -> [a] -> a
   myMinimumBy fn [a] = a
   myMinimumBy fn (a:b) = if (fn a) < (fn minRest) then a else minRest
     where
       minRest = myMinimumBy fn b
-
-
 
   getMove :: GameState -> Int -> Move
   getMove state seed = getBestMoveMinMax state
@@ -20,91 +17,101 @@ module AI where
   getRandomMove :: GameState -> Int -> Move
   getRandomMove state seed = possibleMoves!!index
     where
-      possibleMoves = boardPossibleMoves state
+      possibleMoves = statePossibleMoves state
       index = seed `mod` (length possibleMoves)
 
   getBestMoveNoRecursion :: GameState -> Move
   getBestMoveNoRecursion state = bestMove
     where
-      possibleMoves = boardPossibleMoves state
-      bestMove = myMinimumBy (moveValue (snd state) state) possibleMoves
+      possibleMoves = statePossibleMoves state
+      bestMove = myMinimumBy (moveValue state) possibleMoves
 
   getBestMoveMinMax :: GameState -> Move
-  getBestMoveMinMax state = minimax 2 (snd state) state
+  getBestMoveMinMax state = minimax 2 state
 
 
 
   -- Code inspired from the excellent http://giocc.com/concise-implementation-of-minimax-through-higher-order-functions.html
 
-  foldMoves :: Int -> Color -> GameState -> (Move, Int) -> Move -> (Move, Int)
-  foldMoves depth startColor state (currentBestMove, currentBestScore) move
+  foldMoves :: Int -> GameState -> (Move, Int) -> Move -> (Move, Int)
+  foldMoves depth state (currentBestMove, currentBestScore) move
     | nextScore > currentBestScore = (move, nextScore)
     | otherwise = (currentBestMove, currentBestScore)
     where
-      nextScore = maxPlay depth startColor (makeMove state move)
+      nextScore = maxPlay depth (makeMove state move)
 
-  minimax :: Int -> Color -> GameState -> Move
-  minimax depth startColor state = bestMove
+  -- negamax :: Int -> GameState -> Move
+  -- negamax depth (board, color) =
+  --   if depth == 0
+  --     then boardHeuristic (board, color)
+  --     else
+
+  minimax :: Int -> GameState -> Move
+  minimax depth state = bestMove
     where
-      moves = boardPossibleMoves state
+      moves = statePossibleMoves state
       firstPossibleMove = head moves
-      firstPossibleScore = boardHeuristic startColor (makeMove state firstPossibleMove)
-      (bestMove, bestScore) = foldl (foldMoves depth startColor state) (firstPossibleMove, firstPossibleScore) moves
+      firstPossibleScore = boardHeuristic (makeMove state firstPossibleMove)
+      (bestMove, bestScore) = foldl (foldMoves depth state) (firstPossibleMove, firstPossibleScore) moves
 
 
-  minPlay :: Int -> Color -> GameState -> Int
-  minPlay 0 startColor state = boardHeuristic startColor state
-  minPlay depth startColor state = minimum nextScores
+  minPlay :: Int -> GameState -> Int
+  minPlay 0 state = boardHeuristic state
+  minPlay depth state = minimum nextScores
     where
-      nextMoves = boardPossibleMoves state
+      nextMoves = statePossibleMoves state
       nextStates = map (makeMove state) nextMoves
-      nextScores = map (maxPlay (depth-1) startColor) nextStates
+      nextScores = map (maxPlay (depth-1)) nextStates
 
 
-  maxPlay :: Int -> Color -> GameState -> Int
-  maxPlay 0 startColor state = boardHeuristic startColor state
-  maxPlay depth startColor state = maximum nextScores
+  maxPlay :: Int -> GameState -> Int
+  maxPlay 0 state = boardHeuristic state
+  maxPlay depth state = maximum nextScores
     where
-      nextMoves = boardPossibleMoves state
+      nextMoves = statePossibleMoves state
       nextStates = map (makeMove state) nextMoves
-      nextScores = map (minPlay (depth-1) startColor) nextStates
+      nextScores = map (minPlay (depth-1)) nextStates
 
   -- The heuristic depends on:
   --  - points Diff on board
   --  - nb of square threat
 
-  moveValue :: Color -> GameState -> Move -> Int
-  moveValue startColor state move = boardHeuristic startColor (makeMove state move)
+  moveValue :: GameState -> Move -> Int
+  moveValue state move = boardHeuristic (makeMove state move)
 
 
-  boardHeuristic :: Color -> GameState -> Int
-  boardHeuristic startColor state = 0
-    + 10 * (onBoardPieceValues startColor state)
-    + 1 * (squaresUnderControl startColor state)
+  boardHeuristic :: GameState -> Int
+  boardHeuristic (board, color) = 0
+    + (onBoardPieceValuesAndPosition board color)
+    -- + (squaresUnderControl startColor state)
 
+  -- From this article: https://webcache.googleusercontent.com/search?q=cache:Umd_gBjDTskJ:https://chessprogramming.wikispaces.com/Simplified%2Bevaluation%2Bfunction+&cd=1&hl=en&ct=clnk&gl=fr&client=ubuntu
   pieceValue :: PieceType -> Int
-  pieceValue Queen = 10
-  pieceValue Rook = 5
-  pieceValue Bishop = 3
-  pieceValue Horse = 3
-  pieceValue Pawn = 1
-  pieceValue _ = 0
+  pieceValue King = 20000
+  pieceValue Queen = 900
+  pieceValue Rook = 500
+  pieceValue Bishop = 330
+  pieceValue Horse = 320
+  pieceValue Pawn = 100
 
   colorFactor :: Color -> Color -> Int
   colorFactor col1 col2
     | col1 == col2 = 1
     | otherwise = -1
 
-  squareValue :: Square -> Color -> Int
-  squareValue Empty playerColor = 0
-  squareValue (Piece (pieceType, pieceColor)) playerColor = (pieceValue pieceType) * (colorFactor pieceColor playerColor)
+  pieceTableBonus :: PieceType -> Coords -> Int
+  pieceTableBonus pieceType coords = 0
 
-  onBoardPieceValues :: Color -> GameState -> Int
-  onBoardPieceValues startColor (board, color) =
-    reduceBoard (\coords square -> squareValue square startColor) (+) 0 board
+  squareValue :: Color -> Coords -> Square -> Int
+  squareValue _ _ Empty = 0
+  squareValue color coords (Piece (pieceType, pieceColor)) = ((pieceValue pieceType) + (pieceTableBonus pieceType coords)) * (colorFactor pieceColor color)
 
-  squaresUnderControl :: Color -> GameState -> Int
-  squaresUnderControl startColor (board, color) = playerControl - opponentControl
-    where
-    playerControl = reduceBoard (\coords square -> length $ possibleDestinationsFromOrigin board startColor coords) (+) 0 board
-    opponentControl = reduceBoard (\coords square -> length $ possibleDestinationsFromOrigin board (next startColor) coords) (+) 0 board
+  onBoardPieceValuesAndPosition :: Board -> Color -> Int
+  onBoardPieceValuesAndPosition board color =
+    reduceBoard (squareValue color) (+) 0 board
+
+  -- squaresUnderControl :: Color -> GameState -> Int
+  -- squaresUnderControl startColor (board, color) = playerControl - opponentControl
+  --   where
+  --   playerControl = reduceBoard (\coords square -> length $ possibleDestinationsFromOrigin board startColor coords square) (+) 0 board
+  --   opponentControl = reduceBoard (\coords square -> length $ possibleDestinationsFromOrigin board (next startColor) coords square) (+) 0 board

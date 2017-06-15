@@ -3,7 +3,7 @@ module Board where
   import Data.List as L
   import Datatypes
   import Data.Char
-
+  import Data.Maybe
 
   next :: Color -> Color
   next White = Black
@@ -24,9 +24,6 @@ module Board where
     "   A B C D E F G H   "
     ])
 
-  -- concat :: [[a]] -> [a]
-  -- concat xss = L.foldr (L.++) [] xss
-
   matrixToLists :: Vector (Vector a) -> [[a]]
   matrixToLists = toList . V.map toList
 
@@ -34,19 +31,26 @@ module Board where
   reduceLine fn accumulator line = V.ifoldl fn accumulator line
 
   imapBoard :: (Coords -> Square -> a) -> Board -> Vector (Vector a)
-  imapBoard fn board = imap (\lineNb line -> imap (\colNb square -> fn (lineNb, colNb) square) line) board
+  imapBoard fn board = imap (\lineNb line -> imap (\colNb square -> fn (colNb, lineNb) square) line) board
 
-  reduceBoard :: (Coords -> Square -> a) -> (a -> a -> a) -> a -> Board -> a
+  reduceBoard :: (Coords -> Square -> a) -> (b -> a -> b) -> b -> Board -> b
   reduceBoard mapFn reduceFn accumulator board =
     let mappedBoard = imapBoard mapFn board in
       V.foldl (\acc line -> V.foldl reduceFn acc line) accumulator mappedBoard
+
+  findBoard :: (Coords -> Square -> Bool) -> Board -> Maybe Coords
+  findBoard findFn board = reduceBoard (\origin square -> (origin, square)) (\result (origin, square) -> case () of
+    _ | isJust result -> result
+      | findFn origin square -> Just origin
+      | otherwise -> Nothing
+    ) Nothing board
 
   -- TODO5: make getSquare secure (with a Maybe?)
   getSquare :: Board -> Coords -> Square
   getSquare board (x, y) = board!y!x
 
   isKing :: Square -> Bool
-  isKing (Piece (piecetype, _)) = piecetype == King
+  isKing (Piece (pieceType, _)) = pieceType == King
   isKing Empty = False
 
   getColor :: Square -> Maybe Color
@@ -61,15 +65,21 @@ module Board where
   readBoard :: String -> Board
   readBoard boardString = fromList $ L.map fromList (L.map (L.map (read . (:[]))) $ lines boardString)
 
-  boardMove :: Board -> Move -> Board
-  boardMove board move = imap (\y line ->
-    imap (\x square -> replaceSquare board move square (x, y)) line) board
-
   makeMove :: GameState -> Move -> GameState
   makeMove (board, color) move = (boardMove board move, next color)
 
-  replaceSquare ::  Board -> Move -> Square -> Coords -> Square
-  replaceSquare board (origin, destination) square coords
-    | coords == origin = Empty
-    | coords == destination = getSquare board origin
-    | otherwise = square
+  boardMove :: Board -> Move -> Board
+  boardMove board move = imapBoard (replaceSquare board move) board
+
+  movePieceAndPromoteIfNecessary :: Square -> Coords -> Square
+  movePieceAndPromoteIfNecessary (Piece (Pawn, color)) (x, y) = Piece (if (color == White && y == 0 || color == Black && y == 7) then Queen else Pawn, color)
+  movePieceAndPromoteIfNecessary square _ = square
+
+  replaceSquare ::  Board -> Move -> Coords -> Square -> Square
+  replaceSquare board (origin, destination) boardCoords destinationSquare
+    | boardCoords == origin = Empty
+    | boardCoords == destination = originSquare
+    -- | boardCoords == destination = movePieceAndPromoteIfNecessary originSquare origin
+    | otherwise = destinationSquare
+    where
+      originSquare = getSquare board origin
