@@ -29,7 +29,7 @@ module AI where
       bestMove = myMinimumBy (moveValue board color) possibleMoves
 
   getBestMoveMinMax :: GameState -> Move
-  getBestMoveMinMax state = negamax 3 state
+  getBestMoveMinMax state = negamax 2 state
 
 
 
@@ -54,3 +54,19 @@ module AI where
   negamaxScore depth state = maximum $ map (\move -> -(negamaxScore (depth -1) (makeMove state move))) nextMoves
     where
       nextMoves = statePossibleMoves state
+
+  -- alphaBetaScore :: Int -> Int -> Int -> GameState -> Int
+  -- alphaBetaScore _ _ 0 (board, color) = boardHeuristic board color
+  -- alphaBetaScore alphaInit betaInit depth state =
+  --   foldl (\(alpha, beta) move ->
+  --     let deeperScore = -(alphaBetaScore alpha beta (depth -1) (makeMove state move)) in
+  --     (minimum [alpha, deeperScore], maximum [beta, deeperScore])
+  --   ) (alphaInit, betaInit) nextMoves
+  --   where
+  --     nextMoves = statePossibleMoves state
+
+  -- quiesce :: Int -> Int -> GameState -> Int
+  -- quiesce alpha beta (board, color) =
+  --   let heuristic = boardHeuristic board color in
+  --   let captures = statePossibleCaptures state in
+  --   captures

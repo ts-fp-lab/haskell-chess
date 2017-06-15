@@ -100,7 +100,7 @@ module Main where
         -- seedPosixTime <- getPOSIXTime
         putStrLn $ "Current Board Score:" ++ (show $ boardHeuristic board color)
         let possibleMoves = statePossibleMoves state
-        putStrLn $ intercalate "\n" $ map (\move -> (chessMove move) ++ ":" ++ (show $ moveValue board color move)) possibleMoves
+        -- putStrLn $ intercalate "\n" $ map (\move -> (chessMove move) ++ ":" ++ (show $ moveValue board color move)) possibleMoves
         let move = AI.getMove state 0
         putStrLn $ "Move:" ++ (chessMove move) ++ " score: " ++ (show $ moveValue board color move)
         makeMoveAndCheckFinished state players gameName move

@@ -38,17 +38,19 @@ module Rules where
   basicPieceTypeMover Horse = moveHorse
   basicPieceTypeMover Pawn = movePawn
 
-  pieceTypeMover :: PieceType -> Board -> Color -> Coords -> [Coords]
-  pieceTypeMover King board color origin = filterCheckPosition board color origin $ basicPieceTypeMover King board color origin
-  pieceTypeMover pieceType board color origin = if isCheck board color then [] else basicPieceTypeMover pieceType board color origin
+  movePieceAndRemoveCheck :: PieceType -> Board -> Color -> Coords -> [Coords]
+  movePieceAndRemoveCheck pieceType board color origin = removeCheckPosition board color origin $ basicPieceTypeMover pieceType board color origin
 
-  possibleDestinationsFromOrigin :: Board -> Color -> Coords -> Square -> [Coords]
-  possibleDestinationsFromOrigin board color origin square =
+  possibleDestinationsFromOriginNoMover :: (PieceType -> Board -> Color -> Coords -> [Coords]) -> Board -> Color -> Coords -> Square -> [Coords]
+  possibleDestinationsFromOriginNoMover mover board color origin square =
     case square of
       Empty -> []
       Piece (pieceType, pieceColor) -> if color == pieceColor
-        then pieceTypeMover pieceType board pieceColor origin
+        then mover pieceType board pieceColor origin
         else []
+
+  possibleDestinationsFromOrigin :: Board -> Color -> Coords -> Square -> [Coords]
+  possibleDestinationsFromOrigin = possibleDestinationsFromOriginNoMover movePieceAndRemoveCheck
 
   coordsToMoves :: Coords -> [Coords] -> [Move]
   coordsToMoves origin = L.map (\dest -> (origin, dest))
@@ -113,10 +115,13 @@ module Rules where
   pawnDirection White = -1
   pawnDirection Black = 1
 
-  filterCheckPosition :: Board -> Color -> Coords  -> [Coords] -> [Coords]
-  filterCheckPosition board color origin = L.filter (\destination -> isCheck (boardMove board (origin, destination)) color)
+  removeCheckPosition :: Board -> Color -> Coords  -> [Coords] -> [Coords]
+  removeCheckPosition board color origin = L.filter (\destination -> isNothing $ checkingPiece (boardMove board (origin, destination)) color)
 
-  isCheck :: Board -> Color -> Bool
-  isCheck board color = False
-    -- let kingCoords = fromJust (findBoard (\coords square -> isKing square) board) in
-    -- reduceBoard (\origin square -> kingCoords `L.elem` (possibleDestinationsFromOrigin board (next color) origin square)) (\ result squareCheck -> result || squareCheck) False board
+  checkingPiece :: Board -> Color -> Maybe Coords
+  checkingPiece board color = findBoard (\origin square ->
+      kingCoords `L.elem` (possibleDestinationsFromOriginNoMover basicPieceTypeMover board (next color) origin square)
+    ) board
+    where
+      kingCoords = fromJust (findBoard (\coords square -> (isKing square) && (getColor square == Just color)) board)
+
